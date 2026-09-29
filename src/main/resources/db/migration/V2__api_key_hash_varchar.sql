@@ -1,0 +1,1 @@
+ALTER TABLE tenants ALTER COLUMN api_key_hash TYPE VARCHAR(64);

@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: hookrelay
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hookrelay
+    username: hook
+    password: hook
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
