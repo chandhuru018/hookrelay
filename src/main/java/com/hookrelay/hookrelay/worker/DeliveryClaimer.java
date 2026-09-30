@@ -2,6 +2,7 @@ package com.hookrelay.hookrelay.worker;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -16,6 +17,7 @@ public class DeliveryClaimer {
         this.jdbcTemplate = jdbcTemplate;
     }
 
+    @Transactional
     public List<Long> claimBatch(int batchSize) {
         String sql = """
                 SELECT id FROM deliveries
