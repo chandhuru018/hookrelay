@@ -1,4 +1,4 @@
-package com.hookrelay.hookrelay;
+package com.hookrelay.hookrelay.service;
 
 import com.hookrelay.hookrelay.domain.Endpoint;
 import com.hookrelay.hookrelay.domain.EndpointStatus;
@@ -7,8 +7,6 @@ import com.hookrelay.hookrelay.domain.Tenant;
 import com.hookrelay.hookrelay.repository.DeliveryRepository;
 import com.hookrelay.hookrelay.repository.EndpointRepository;
 import com.hookrelay.hookrelay.repository.EventRepository;
-import com.hookrelay.hookrelay.service.DuplicateEventException;
-import com.hookrelay.hookrelay.service.EventPublishingService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
