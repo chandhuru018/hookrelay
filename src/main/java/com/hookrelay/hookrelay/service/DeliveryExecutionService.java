@@ -11,6 +11,7 @@ import com.hookrelay.hookrelay.security.WebhookSigner;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -25,13 +26,16 @@ public class DeliveryExecutionService {
     private final EndpointRepository endpointRepository;
     private final WebhookSigner webhookSigner;
     private final RestClient restClient;
+    private final MeterRegistry meterRegistry;
 
     public DeliveryExecutionService(DeliveryRepository deliveryRepository,
                                     EndpointRepository endpointRepository,
-                                    WebhookSigner webhookSigner) {
+                                    WebhookSigner webhookSigner,
+                                    MeterRegistry meterRegistry) {
         this.deliveryRepository = deliveryRepository;
         this.endpointRepository = endpointRepository;
         this.webhookSigner = webhookSigner;
+        this.meterRegistry = meterRegistry;
         this.restClient = RestClient.builder().build();
     }
 
@@ -61,6 +65,7 @@ public class DeliveryExecutionService {
                     .toBodilessEntity();
 
             delivery.setStatus(DeliveryStatus.DELIVERED);
+            meterRegistry.counter("hookrelay.deliveries", "outcome", "delivered").increment();
             resetEndpointFailures(endpoint);
 
         } catch (Exception e) {
@@ -77,9 +82,11 @@ public class DeliveryExecutionService {
 
         if (attempts >= MAX_ATTEMPTS) {
             delivery.setStatus(DeliveryStatus.DEAD);
+            meterRegistry.counter("hookrelay.deliveries", "outcome", "dead").increment();
         } else {
             delivery.setStatus(DeliveryStatus.RETRYING);
             delivery.setNextAttemptAt(Instant.now().plusSeconds(backoffSeconds(attempts)));
+            meterRegistry.counter("hookrelay.deliveries", "outcome", "retry").increment();
         }
 
         int failures = endpoint.getConsecutiveFailures() + 1;
