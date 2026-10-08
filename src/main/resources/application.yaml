@@ -5,6 +5,9 @@ spring:
     url: jdbc:postgresql://localhost:5432/hookrelay
     username: hook
     password: hook
+    hikari:
+      maximum-pool-size: 20
+
   jpa:
     hibernate:
       ddl-auto: validate
