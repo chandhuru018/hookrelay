@@ -36,7 +36,7 @@ public class DeliveryClaimer {
         }
 
         jdbcTemplate.update(
-                "UPDATE deliveries SET status = 'IN_FLIGHT' WHERE id = ANY(?)",
+                "UPDATE deliveries SET status = 'IN_FLIGHT', claimed_at = now() WHERE id = ANY(?)",
                 (Object) ids.toArray(new Long[0]));
 
         return ids;

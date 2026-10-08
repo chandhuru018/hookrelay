@@ -7,11 +7,15 @@ spring:
     password: hook
     hikari:
       maximum-pool-size: 20
-
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  task:
+    scheduling:
+      pool:
+        size: 2
+
 management:
   endpoints:
     web:
