@@ -1,6 +1,7 @@
 package com.hookrelay.hookrelay;
 
 import com.hookrelay.hookrelay.worker.DeliveryClaimer;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +59,17 @@ class DeliveryClaimerConcurrencyTest {
                     "INSERT INTO deliveries (event_id, endpoint_id, status, next_attempt_at) VALUES (?, ?, 'PENDING', ?)",
                     testEventId, testEndpointId, java.sql.Timestamp.from(Instant.now()));
         }
+    }
+
+    @AfterEach
+    void cleanUp() {
+        jdbcTemplate.update(
+                "DELETE FROM delivery_attempts WHERE delivery_id IN (SELECT id FROM deliveries WHERE event_id = ?)",
+                testEventId);
+        jdbcTemplate.update("DELETE FROM deliveries WHERE event_id = ?", testEventId);
+        jdbcTemplate.update("DELETE FROM events WHERE id = ?", testEventId);
+        jdbcTemplate.update("DELETE FROM endpoints WHERE id = ?", testEndpointId);
+        jdbcTemplate.update("DELETE FROM tenants WHERE id = ?", testTenantId);
     }
 
     @Test
