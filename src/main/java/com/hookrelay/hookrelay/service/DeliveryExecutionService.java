@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import java.time.Duration;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -36,7 +38,10 @@ public class DeliveryExecutionService {
         this.endpointRepository = endpointRepository;
         this.webhookSigner = webhookSigner;
         this.meterRegistry = meterRegistry;
-        this.restClient = RestClient.builder().build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        this.restClient = RestClient.builder().requestFactory(requestFactory).build();
     }
 
     @Transactional
