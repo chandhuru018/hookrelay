@@ -13,9 +13,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final ApiKeyAuthFilter apiKeyAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(ApiKeyAuthFilter apiKeyAuthFilter) {
+    public SecurityConfig(ApiKeyAuthFilter apiKeyAuthFilter, RateLimitFilter rateLimitFilter) {
         this.apiKeyAuthFilter = apiKeyAuthFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -24,10 +26,13 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/actuator/metrics", "/actuator/metrics/**", "/api/v1/tenants", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/error").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/metrics", "/actuator/metrics/**",
+                                "/api/v1/tenants", "/swagger-ui.html", "/swagger-ui/**",
+                                "/v3/api-docs/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitFilter, ApiKeyAuthFilter.class);
 
         return http.build();
     }
