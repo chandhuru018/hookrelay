@@ -1,5 +1,6 @@
 package com.hookrelay.hookrelay.api;
 
+import com.hookrelay.hookrelay.security.UnsafeUrlException;
 import com.hookrelay.hookrelay.service.DuplicateEventException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +25,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DuplicateEventException.class)
     public ResponseEntity<Map<String, String>> handleDuplicate(DuplicateEventException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnsafeUrlException.class)
+    public ResponseEntity<Map<String, String>> handleUnsafeUrl(UnsafeUrlException ex) {
+        return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
     }
 }

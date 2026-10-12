@@ -3,6 +3,7 @@ package com.hookrelay.hookrelay.service;
 import com.hookrelay.hookrelay.domain.Endpoint;
 import com.hookrelay.hookrelay.domain.Tenant;
 import com.hookrelay.hookrelay.repository.EndpointRepository;
+import com.hookrelay.hookrelay.security.UrlSafetyValidator;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -12,15 +13,20 @@ import java.util.Base64;
 public class EndpointRegistrationService {
 
     private final EndpointRepository endpointRepository;
+    private final UrlSafetyValidator urlSafetyValidator;
     private final SecureRandom secureRandom = new SecureRandom();
 
-    public EndpointRegistrationService(EndpointRepository endpointRepository) {
+    public EndpointRegistrationService(EndpointRepository endpointRepository,
+                                       UrlSafetyValidator urlSafetyValidator) {
         this.endpointRepository = endpointRepository;
+        this.urlSafetyValidator = urlSafetyValidator;
     }
 
     public Endpoint register(Tenant tenant, String url) {
+        urlSafetyValidator.validate(url);
+
         String secret = generateSecret();
-        Endpoint endpoint = new Endpoint(tenant, url, secret);
+        Endpoint endpoint = new Endpoint(tenant, url.trim(), secret);
         return endpointRepository.save(endpoint);
     }
 
