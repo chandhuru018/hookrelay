@@ -15,12 +15,16 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.sql.SQLException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class EventPublishingServiceTest {
@@ -44,6 +48,10 @@ class EventPublishingServiceTest {
         tenant = new Tenant("Test Tenant", "hash123");
     }
 
+    private DataIntegrityViolationException violationWithSqlState(String message, String sqlState) {
+        return new DataIntegrityViolationException(message, new SQLException(message, sqlState));
+    }
+
     @Test
     void publishEvent_savesEventAndCreatesDeliveriesForActiveEndpointsOnly() {
         Endpoint activeEndpoint = new Endpoint(tenant, "http://active.com", "secret1");
@@ -58,19 +66,40 @@ class EventPublishingServiceTest {
 
         eventPublishingService.publishEvent(tenant, "order.paid", "{}", "key-1");
 
-        // Only ONE delivery should be created: for the active endpoint only
         verify(deliveryRepository, times(1)).save(any());
     }
 
     @Test
     void publishEvent_throwsDuplicateEventException_whenIdempotencyKeyAlreadyUsed() {
         when(eventRepository.save(any(Event.class)))
-                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+                .thenThrow(violationWithSqlState("duplicate key value violates unique constraint", "23505"));
 
         assertThrows(DuplicateEventException.class, () ->
                 eventPublishingService.publishEvent(tenant, "order.paid", "{}", "duplicate-key"));
 
-        // No deliveries should ever be created for a rejected event
+        verify(deliveryRepository, never()).save(any());
+    }
+
+    @Test
+    void publishEvent_throwsInvalidRequest_whenPayloadIsNotValidJson() {
+        when(eventRepository.save(any(Event.class)))
+                .thenThrow(violationWithSqlState("invalid input syntax for type json", "22P02"));
+
+        InvalidRequestException ex = assertThrows(InvalidRequestException.class, () ->
+                eventPublishingService.publishEvent(tenant, "order.paid", "not json", "key-3"));
+
+        assertEquals("payload must be valid JSON", ex.getMessage());
+        verify(deliveryRepository, never()).save(any());
+    }
+
+    @Test
+    void publishEvent_rethrowsOtherIntegrityViolations_insteadOfCallingThemDuplicates() {
+        when(eventRepository.save(any(Event.class)))
+                .thenThrow(violationWithSqlState("null value in column", "23502"));
+
+        assertThrows(DataIntegrityViolationException.class, () ->
+                eventPublishingService.publishEvent(tenant, "order.paid", "{}", "key-4"));
+
         verify(deliveryRepository, never()).save(any());
     }
 

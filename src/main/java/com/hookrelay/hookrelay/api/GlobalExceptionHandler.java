@@ -2,6 +2,7 @@ package com.hookrelay.hookrelay.api;
 
 import com.hookrelay.hookrelay.security.UnsafeUrlException;
 import com.hookrelay.hookrelay.service.DuplicateEventException;
+import com.hookrelay.hookrelay.service.InvalidRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -30,6 +31,12 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(UnsafeUrlException.class)
     public ResponseEntity<Map<String, String>> handleUnsafeUrl(UnsafeUrlException ex) {
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidRequest(InvalidRequestException ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of("error", ex.getMessage()));
     }

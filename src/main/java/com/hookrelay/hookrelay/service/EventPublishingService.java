@@ -12,10 +12,15 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.SQLException;
 import java.util.List;
 
 @Service
 public class EventPublishingService {
+
+    private static final String UNIQUE_VIOLATION = "23505";
+    private static final String INVALID_TEXT_REPRESENTATION = "22P02";
+    private static final String UNTRANSLATABLE_CHARACTER = "22P05";
 
     private final EventRepository eventRepository;
     private final EndpointRepository endpointRepository;
@@ -36,8 +41,16 @@ public class EventPublishingService {
         try {
             event = eventRepository.save(event);
         } catch (DataIntegrityViolationException e) {
-            throw new DuplicateEventException(
-                    "Event with idempotencyKey '" + idempotencyKey + "' already exists for this tenant");
+            String sqlState = findSqlState(e);
+
+            if (UNIQUE_VIOLATION.equals(sqlState)) {
+                throw new DuplicateEventException(
+                        "Event with idempotencyKey '" + idempotencyKey + "' already exists for this tenant");
+            }
+            if (INVALID_TEXT_REPRESENTATION.equals(sqlState) || UNTRANSLATABLE_CHARACTER.equals(sqlState)) {
+                throw new InvalidRequestException("payload must be valid JSON");
+            }
+            throw e;
         }
 
         List<Endpoint> endpoints = endpointRepository.findByTenantId(tenant.getId())
@@ -51,5 +64,16 @@ public class EventPublishingService {
         }
 
         return event;
+    }
+
+    private static String findSqlState(Throwable error) {
+        Throwable current = error;
+        for (int depth = 0; current != null && depth < 10; depth++) {
+            if (current instanceof SQLException sqlException && sqlException.getSQLState() != null) {
+                return sqlException.getSQLState();
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 }
