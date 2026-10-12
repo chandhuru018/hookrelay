@@ -7,14 +7,16 @@ import com.hookrelay.hookrelay.domain.EndpointStatus;
 import com.hookrelay.hookrelay.domain.Event;
 import com.hookrelay.hookrelay.repository.DeliveryRepository;
 import com.hookrelay.hookrelay.repository.EndpointRepository;
+import com.hookrelay.hookrelay.security.UnsafeUrlException;
+import com.hookrelay.hookrelay.security.UrlSafetyValidator;
 import com.hookrelay.hookrelay.security.WebhookSigner;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
-import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import java.time.Duration;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -27,19 +29,27 @@ public class DeliveryExecutionService {
     private final DeliveryRepository deliveryRepository;
     private final EndpointRepository endpointRepository;
     private final WebhookSigner webhookSigner;
-    private final RestClient restClient;
     private final MeterRegistry meterRegistry;
+    private final UrlSafetyValidator urlSafetyValidator;
+    private final RestClient restClient;
 
     public DeliveryExecutionService(DeliveryRepository deliveryRepository,
                                     EndpointRepository endpointRepository,
                                     WebhookSigner webhookSigner,
-                                    MeterRegistry meterRegistry) {
+                                    MeterRegistry meterRegistry,
+                                    UrlSafetyValidator urlSafetyValidator) {
         this.deliveryRepository = deliveryRepository;
         this.endpointRepository = endpointRepository;
         this.webhookSigner = webhookSigner;
         this.meterRegistry = meterRegistry;
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(5));
+        this.urlSafetyValidator = urlSafetyValidator;
+
+        HttpClient httpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(Duration.ofSeconds(5))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(Duration.ofSeconds(10));
         this.restClient = RestClient.builder().requestFactory(requestFactory).build();
     }
@@ -55,6 +65,14 @@ public class DeliveryExecutionService {
         Endpoint endpoint = delivery.getEndpoint();
         Event event = delivery.getEvent();
 
+        try {
+            urlSafetyValidator.validate(endpoint.getUrl());
+        } catch (UnsafeUrlException e) {
+            blockDelivery(delivery, endpoint, e.getMessage());
+            deliveryRepository.save(delivery);
+            return;
+        }
+
         String body = event.getPayload();
         String timestamp = String.valueOf(Instant.now().getEpochSecond());
         String signature = webhookSigner.sign(endpoint.getSecret(), timestamp, body);
@@ -67,6 +85,10 @@ public class DeliveryExecutionService {
                     .header("X-HookRelay-Signature", signature)
                     .body(body)
                     .retrieve()
+                    .onStatus(status -> !status.is2xxSuccessful(), (request, response) -> {
+                        throw new IllegalStateException(
+                                "Endpoint responded with HTTP " + response.getStatusCode().value());
+                    })
                     .toBodilessEntity();
 
             delivery.setStatus(DeliveryStatus.DELIVERED);
@@ -78,6 +100,17 @@ public class DeliveryExecutionService {
         }
 
         deliveryRepository.save(delivery);
+    }
+
+    private void blockDelivery(Delivery delivery, Endpoint endpoint, String reason) {
+        delivery.setStatus(DeliveryStatus.DEAD);
+        delivery.setAttemptCount(delivery.getAttemptCount() + 1);
+        delivery.setLastError(truncate("Blocked: " + reason));
+
+        endpoint.setStatus(EndpointStatus.DISABLED);
+        endpointRepository.save(endpoint);
+
+        meterRegistry.counter("hookrelay.deliveries", "outcome", "blocked").increment();
     }
 
     private void handleFailure(Delivery delivery, Endpoint endpoint, String errorMessage) {
