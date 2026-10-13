@@ -18,18 +18,29 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 class RateLimitFilterTest {
 
+    private final ClientIpResolver directResolver = new ClientIpResolver(0);
+    private final ClientIpResolver oneProxyResolver = new ClientIpResolver(1);
+
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
     }
 
-    private MockHttpServletResponse send(RateLimitFilter filter, String method, String path, String remoteAddr)
-            throws Exception {
+    private MockHttpServletResponse send(RateLimitFilter filter, String method, String path,
+                                         String remoteAddr, String forwardedFor) throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
         request.setRemoteAddr(remoteAddr);
+        if (forwardedFor != null) {
+            request.addHeader("X-Forwarded-For", forwardedFor);
+        }
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
         return response;
+    }
+
+    private MockHttpServletResponse send(RateLimitFilter filter, String method, String path,
+                                         String remoteAddr) throws Exception {
+        return send(filter, method, path, remoteAddr, null);
     }
 
     private void authenticateAs(long tenantId) {
@@ -41,7 +52,7 @@ class RateLimitFilterTest {
 
     @Test
     void limitsRegistrationPerIp() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 2, 3600, 300, 60);
+        RateLimitFilter filter = new RateLimitFilter(true, 2, 3600, 300, 60, directResolver);
 
         assertEquals(200, send(filter, "POST", "/api/v1/tenants", "1.2.3.4").getStatus());
         assertEquals(200, send(filter, "POST", "/api/v1/tenants", "1.2.3.4").getStatus());
@@ -55,7 +66,7 @@ class RateLimitFilterTest {
 
     @Test
     void limitsApiRequestsPerTenant() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 5, 3600, 2, 60);
+        RateLimitFilter filter = new RateLimitFilter(true, 5, 3600, 2, 60, directResolver);
 
         authenticateAs(1L);
         assertEquals(200, send(filter, "POST", "/api/v1/events", "1.2.3.4").getStatus());
@@ -68,7 +79,7 @@ class RateLimitFilterTest {
 
     @Test
     void neverLimitsNonApiPaths() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(true, 1, 3600, 1, 60);
+        RateLimitFilter filter = new RateLimitFilter(true, 1, 3600, 1, 60, directResolver);
 
         for (int i = 0; i < 5; i++) {
             assertEquals(200, send(filter, "GET", "/actuator/health", "1.2.3.4").getStatus());
@@ -78,12 +89,29 @@ class RateLimitFilterTest {
 
     @Test
     void passesEverythingWhenDisabled() throws Exception {
-        RateLimitFilter filter = new RateLimitFilter(false, 1, 3600, 1, 60);
+        RateLimitFilter filter = new RateLimitFilter(false, 1, 3600, 1, 60, directResolver);
 
         for (int i = 0; i < 5; i++) {
             MockHttpServletResponse response = send(filter, "POST", "/api/v1/tenants", "1.2.3.4");
             assertEquals(200, response.getStatus());
             assertNull(response.getHeader("Retry-After"));
         }
+    }
+
+    @Test
+    void separatesVisitorsBehindATrustedProxy() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(true, 1, 3600, 300, 60, oneProxyResolver);
+
+        assertEquals(200, send(filter, "POST", "/api/v1/tenants", "10.0.0.1", "1.1.1.1").getStatus());
+        assertEquals(429, send(filter, "POST", "/api/v1/tenants", "10.0.0.1", "1.1.1.1").getStatus());
+        assertEquals(200, send(filter, "POST", "/api/v1/tenants", "10.0.0.1", "2.2.2.2").getStatus());
+    }
+
+    @Test
+    void forgedForwardedHeaderDoesNotHelpWhenNoProxyIsTrusted() throws Exception {
+        RateLimitFilter filter = new RateLimitFilter(true, 1, 3600, 300, 60, directResolver);
+
+        assertEquals(200, send(filter, "POST", "/api/v1/tenants", "1.2.3.4", "5.5.5.5").getStatus());
+        assertEquals(429, send(filter, "POST", "/api/v1/tenants", "1.2.3.4", "6.6.6.6").getStatus());
     }
 }

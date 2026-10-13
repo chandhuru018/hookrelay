@@ -24,16 +24,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final boolean enabled;
     private final RateLimiter registerLimiter;
     private final RateLimiter apiLimiter;
+    private final ClientIpResolver clientIpResolver;
 
     public RateLimitFilter(
             @Value("${hookrelay.rate-limit.enabled:true}") boolean enabled,
             @Value("${hookrelay.rate-limit.register.limit:5}") int registerLimit,
             @Value("${hookrelay.rate-limit.register.window-seconds:3600}") long registerWindowSeconds,
             @Value("${hookrelay.rate-limit.api.limit:300}") int apiLimit,
-            @Value("${hookrelay.rate-limit.api.window-seconds:60}") long apiWindowSeconds) {
+            @Value("${hookrelay.rate-limit.api.window-seconds:60}") long apiWindowSeconds,
+            ClientIpResolver clientIpResolver) {
         this.enabled = enabled;
         this.registerLimiter = new RateLimiter(registerLimit, Duration.ofSeconds(registerWindowSeconds));
         this.apiLimiter = new RateLimiter(apiLimit, Duration.ofSeconds(apiWindowSeconds));
+        this.clientIpResolver = clientIpResolver;
     }
 
     @Override
@@ -45,7 +48,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             RateLimiter.Decision decision = null;
 
             if ("POST".equalsIgnoreCase(request.getMethod()) && REGISTER_PATH.equals(path)) {
-                decision = registerLimiter.tryAcquire("ip:" + request.getRemoteAddr());
+                decision = registerLimiter.tryAcquire("ip:" + clientIpResolver.resolve(request));
             } else if (path.startsWith(API_PREFIX)) {
                 decision = apiLimiter.tryAcquire(apiKeyFor(request));
             }
@@ -70,7 +73,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (authentication != null && authentication.getPrincipal() instanceof Tenant tenant) {
             return "tenant:" + tenant.getId();
         }
-        return "ip:" + request.getRemoteAddr();
+        return "ip:" + clientIpResolver.resolve(request);
     }
 
     private void reject(HttpServletResponse response, long retryAfterSeconds) throws IOException {

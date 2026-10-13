@@ -1,0 +1,11 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    hikari:
+      maximum-pool-size: 10
+      initialization-fail-timeout: 60000

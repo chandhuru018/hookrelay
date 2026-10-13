@@ -56,7 +56,7 @@ public class SecurityConfig {
     public SecurityFilterChain actuatorSecurityChain(HttpSecurity http,
                                                      UserDetailsService adminUserDetailsService) throws Exception {
         http
-                .securityMatcher("/actuator/**")
+                .securityMatcher("/actuator/**", "/admin/**")
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .userDetailsService(adminUserDetailsService)
