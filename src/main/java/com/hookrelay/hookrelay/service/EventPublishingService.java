@@ -25,17 +25,22 @@ public class EventPublishingService {
     private final EventRepository eventRepository;
     private final EndpointRepository endpointRepository;
     private final DeliveryRepository deliveryRepository;
+    private final QuotaService quotaService;
 
     public EventPublishingService(EventRepository eventRepository,
                                   EndpointRepository endpointRepository,
-                                  DeliveryRepository deliveryRepository) {
+                                  DeliveryRepository deliveryRepository,
+                                  QuotaService quotaService) {
         this.eventRepository = eventRepository;
         this.endpointRepository = endpointRepository;
         this.deliveryRepository = deliveryRepository;
+        this.quotaService = quotaService;
     }
 
     @Transactional
     public Event publishEvent(Tenant tenant, String type, String payload, String idempotencyKey) {
+        quotaService.checkCanPublish(tenant.getId(), payload);
+
         Event event = new Event(tenant, type, payload, idempotencyKey);
 
         try {

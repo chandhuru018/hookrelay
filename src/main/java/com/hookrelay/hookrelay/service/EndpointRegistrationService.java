@@ -14,16 +14,20 @@ public class EndpointRegistrationService {
 
     private final EndpointRepository endpointRepository;
     private final UrlSafetyValidator urlSafetyValidator;
+    private final QuotaService quotaService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     public EndpointRegistrationService(EndpointRepository endpointRepository,
-                                       UrlSafetyValidator urlSafetyValidator) {
+                                       UrlSafetyValidator urlSafetyValidator,
+                                       QuotaService quotaService) {
         this.endpointRepository = endpointRepository;
         this.urlSafetyValidator = urlSafetyValidator;
+        this.quotaService = quotaService;
     }
 
     public Endpoint register(Tenant tenant, String url) {
         urlSafetyValidator.validate(url);
+        quotaService.checkCanRegisterEndpoint(tenant.getId());
 
         String secret = generateSecret();
         Endpoint endpoint = new Endpoint(tenant, url.trim(), secret);

@@ -3,6 +3,7 @@ package com.hookrelay.hookrelay.api;
 import com.hookrelay.hookrelay.security.UnsafeUrlException;
 import com.hookrelay.hookrelay.service.DuplicateEventException;
 import com.hookrelay.hookrelay.service.InvalidRequestException;
+import com.hookrelay.hookrelay.service.QuotaExceededException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -38,6 +39,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidRequestException.class)
     public ResponseEntity<Map<String, String>> handleInvalidRequest(InvalidRequestException ex) {
         return ResponseEntity.badRequest()
+                .body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(QuotaExceededException.class)
+    public ResponseEntity<Map<String, String>> handleQuota(QuotaExceededException ex) {
+        return ResponseEntity.status(ex.getStatus())
                 .body(Map.of("error", ex.getMessage()));
     }
 }

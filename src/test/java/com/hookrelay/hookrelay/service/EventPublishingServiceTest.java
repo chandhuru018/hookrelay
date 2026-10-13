@@ -21,6 +21,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,9 @@ class EventPublishingServiceTest {
 
     @Mock
     private DeliveryRepository deliveryRepository;
+
+    @Mock
+    private QuotaService quotaService;
 
     @InjectMocks
     private EventPublishingService eventPublishingService;
@@ -112,6 +116,18 @@ class EventPublishingServiceTest {
 
         eventPublishingService.publishEvent(tenant, "order.paid", "{}", "key-2");
 
+        verify(deliveryRepository, never()).save(any());
+    }
+
+    @Test
+    void publishEvent_rejectsBeforeSavingAnythingWhenQuotaIsExceeded() {
+        doThrow(new QuotaExceededException("limit reached", 429))
+                .when(quotaService).checkCanPublish(any(), any());
+
+        assertThrows(QuotaExceededException.class, () ->
+                eventPublishingService.publishEvent(tenant, "order.paid", "{}", "key-5"));
+
+        verify(eventRepository, never()).save(any());
         verify(deliveryRepository, never()).save(any());
     }
 }

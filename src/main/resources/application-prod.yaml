@@ -9,3 +9,12 @@ spring:
     hikari:
       maximum-pool-size: 10
       initialization-fail-timeout: 60000
+
+hookrelay:
+  retention:
+    days: 3
+  limits:
+    max-endpoints-per-tenant: 5
+    max-stored-events-per-tenant: 1000
+    max-total-events: 20000
+    max-payload-bytes: 8192
