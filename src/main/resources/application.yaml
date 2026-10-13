@@ -14,7 +14,7 @@ spring:
   task:
     scheduling:
       pool:
-        size: 2
+        size: 4
 
 management:
   endpoints:
@@ -28,6 +28,8 @@ management:
 
 hookrelay:
   max-request-body-bytes: 262144
+  retention:
+    days: 7
   security:
     allow-private-targets: false
   admin:

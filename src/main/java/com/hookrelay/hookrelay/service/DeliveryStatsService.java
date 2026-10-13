@@ -1,7 +1,6 @@
 package com.hookrelay.hookrelay.service;
 
 import com.hookrelay.hookrelay.api.DeliveryStatsResponse;
-import com.hookrelay.hookrelay.domain.Delivery;
 import com.hookrelay.hookrelay.domain.DeliveryStatus;
 import com.hookrelay.hookrelay.repository.DeliveryRepository;
 import org.springframework.stereotype.Service;
@@ -20,17 +19,15 @@ public class DeliveryStatsService {
     }
 
     public DeliveryStatsResponse getStats(Long tenantId) {
-        List<Delivery> deliveries = deliveryRepository.findAllForTenant(tenantId);
+        List<Object[]> rows = deliveryRepository.countByStatusForTenant(tenantId);
 
-        long total = deliveries.size();
+        Map<String, Long> countByStatus = rows.stream()
+                .collect(Collectors.toMap(
+                        row -> ((DeliveryStatus) row[0]).name(),
+                        row -> (Long) row[1]));
 
-        Map<String, Long> countByStatus = deliveries.stream()
-                .collect(Collectors.groupingBy(
-                        d -> d.getStatus().name(),
-                        Collectors.counting()));
-
+        long total = countByStatus.values().stream().mapToLong(Long::longValue).sum();
         long delivered = countByStatus.getOrDefault(DeliveryStatus.DELIVERED.name(), 0L);
-
         double successRate = total == 0 ? 0.0 : (delivered * 100.0) / total;
 
         return new DeliveryStatsResponse(total, countByStatus, successRate);

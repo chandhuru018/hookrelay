@@ -9,6 +9,6 @@ import java.util.List;
 
 public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
 
-    @Query("SELECT d FROM Delivery d WHERE d.event.tenant.id = :tenantId")
-    List<Delivery> findAllForTenant(@Param("tenantId") Long tenantId);
+    @Query("SELECT d.status, COUNT(d) FROM Delivery d WHERE d.event.tenant.id = :tenantId GROUP BY d.status")
+    List<Object[]> countByStatusForTenant(@Param("tenantId") Long tenantId);
 }
