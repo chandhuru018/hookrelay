@@ -10,7 +10,7 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 # ---- Stage 2: small runtime image ----
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 
 COPY --from=build /app/target/*.jar app.jar
