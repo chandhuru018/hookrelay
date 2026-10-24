@@ -1,5 +1,5 @@
 # HookRelay
-
+[![CI](https://github.com/chandhuru018/hookrelay/actions/workflows/ci.yml/badge.svg)](https://github.com/chandhuru018/hookrelay/actions/workflows/ci.yml)
 A multi-tenant webhook delivery platform, in the spirit of Stripe or GitHub webhooks. Apps register endpoints and publish events through an API. HookRelay delivers each event to every active endpoint with **at-least-once** semantics, signed payloads, retries with backoff, dead-lettering, replay, and metrics.
 
 **Stack:** Java 21, Spring Boot 4.1, Spring Data JPA (Hibernate 7), Spring Security 7, JdbcTemplate, PostgreSQL 16, Flyway, Micrometer/Actuator, springdoc-openapi, Docker Compose, JUnit 5 + Mockito, k6.
