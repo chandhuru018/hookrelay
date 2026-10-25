@@ -78,7 +78,7 @@ public class SecurityConfig {
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/tenants", "/swagger-ui.html", "/swagger-ui/**",
+                        .requestMatchers("/", "/api/v1/tenants", "/swagger-ui.html", "/swagger-ui/**",
                                 "/v3/api-docs/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
