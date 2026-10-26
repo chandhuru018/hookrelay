@@ -114,19 +114,13 @@ Testcontainers was tried first but abandoned because of a Docker client/API vers
 
 ## Performance
 
-Measured with k6 (20 virtual users, 45 s) against the Dockerized app (`-Xmx320m`), PostgreSQL in Docker, and a local echo server as the webhook receiver, all on one Windows laptop with 16 GB RAM:
+Measured locally with k6 (20 virtual users, 45 s) against the Docker Compose stack, with API-key auth, rate limiting, body-size limits and SSRF validation enabled:
 
-| Metric | Result |
-|---|---|
-| Events accepted | about 570 per second |
-| Publish latency p95 | 53 ms |
-| Failed requests | 0 of 25,605 |
-| Webhook deliveries (sampled during the run) | about 400 per second |
+- ~730 event publishes per second
+- p95 latency 38 ms
+- 0 failed requests out of 32,723
 
-These numbers come from a single machine and a fast local receiver. Real endpoints are slower and results will differ on other hardware.
-
-The first load test showed the API accepting events much faster than the original single-threaded worker delivered them, with a queue backlog of about 48,000. That led to the parallel worker (8 threads, drain loop, larger connection pool).
-
+The load generator and the application ran on the same laptop, so these numbers show relative behaviour, not production capacity.
 ## Known limitations
 
 - `POST /api/v1/tenants` is open, so anyone can register. There is no rate limiting.
