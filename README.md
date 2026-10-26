@@ -5,7 +5,27 @@
 A multi-tenant webhook delivery platform, in the spirit of Stripe or GitHub webhooks. Apps register endpoints and publish events through an API. HookRelay delivers each event to every active endpoint with **at-least-once** semantics, signed payloads, retries with backoff, dead-lettering, replay, and metrics.
 
 **Stack:** Java 21, Spring Boot 4.1, Spring Data JPA (Hibernate 7), Spring Security 7, JdbcTemplate, PostgreSQL 16, Flyway, Micrometer/Actuator, springdoc-openapi, Docker Compose, JUnit 5 + Mockito, k6.
+## Live demo
 
+**[Open the live API (Swagger UI)](https://hookrelay-bqsh.onrender.com/swagger-ui.html)**
+
+Hosted for free on Render, with a Neon Postgres database in Singapore.
+
+> **Note:** the free instance sleeps after 15 minutes without traffic, so the first request can take about a minute. While it sleeps, webhook deliveries pause and resume when it wakes.
+
+### Try it in 2 minutes
+
+1. Open the link above and run `POST /api/v1/tenants` with any name. Copy the `apiKey` from the response (it is shown once).
+2. Click **Authorize** and paste the key.
+3. Get a free receiver URL from [webhook.site](https://webhook.site) and register it with `POST /api/v1/endpoints`.
+4. Send an event with `POST /api/v1/events`. The signed request shows up on webhook.site with `X-HookRelay-Signature` and `X-HookRelay-Timestamp` headers.
+5. Try registering `http://localhost:8080/x`. It is rejected with 400 by the SSRF protection.
+
+### Demo limits (free tier)
+
+- 5 endpoints per tenant, 1,000 stored events per tenant, 8 KB payloads
+- Data is deleted after 3 days
+- Metrics and admin routes are protected by HTTP Basic authentication
 ## Architecture
 
 ```mermaid
