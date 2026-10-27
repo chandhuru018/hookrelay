@@ -123,12 +123,13 @@ Measured locally with k6 (20 virtual users, 45 s) against the Docker Compose sta
 The load generator and the application ran on the same laptop, so these numbers show relative behaviour, not production capacity.
 ## Known limitations
 
-- `POST /api/v1/tenants` is open, so anyone can register. There is no rate limiting.
-- No SSRF protection: tenants can register URLs pointing at private or loopback addresses. This must be fixed before any public deployment.
-- Endpoint secrets are stored in plaintext. API keys are stored as SHA-256 hashes.
-- Actuator metrics and Swagger are unauthenticated, which is fine locally but not in production.
-- The circuit breaker disables an endpoint after 10 consecutive failures. There is no half-open state and no API to re-enable one.
 - Delivery is at-least-once, not exactly-once. Receivers must deduplicate.
+- The rate limiter is in-memory, so it is per instance and resets on restart. That is fine for a single instance; a multi-instance setup would need Redis or a database-backed limiter.
+- Postgres is used as the queue (no Kafka or SQS). It is a good fit for tens of thousands of events per hour, not for massive scale.
+- The circuit breaker disables an endpoint after 10 consecutive failures. There is no half-open state and no API to re-enable one.
+- Endpoint secrets are stored in plaintext. API keys are stored as SHA-256 hashes.
+- No API-key rotation and no per-endpoint secret rotation.
+- The free demo instance sleeps when idle, so deliveries pause until it wakes.
 
 ## Project layout
 
